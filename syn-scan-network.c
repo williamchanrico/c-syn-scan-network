@@ -181,6 +181,8 @@ int main(int argc, char *argv[]){
     if (sendto(sockfd, datagram, sizeof(struct iphdr) + sizeof(struct tcphdr), 0, (struct sockaddr *) &dest, sizeof(dest)) < 0)
       err_exit("Error sending syn packet. Error number: %d. Error message: %s\n", errno, strerror(errno));
 
+    close(sockfd);
+    
     pthread_join(sniffer_thread, NULL);
 
     min.s_addr = htonl(ntohl(min.s_addr) + 1);
