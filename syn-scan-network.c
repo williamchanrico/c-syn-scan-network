@@ -100,6 +100,7 @@ int main(int argc, char *argv[]){
   printf("Scan from: %s\n", dotted_quad(&min));
   printf("To:        %s\n",  dotted_quad(&max));
   printf("%" PRId64 " host(s)\n\n", num_hosts);
+  fflush(stdout);
 
   int host_count;
   for(host_count = 0; host_count < num_hosts; host_count++){
@@ -191,8 +192,8 @@ int main(int argc, char *argv[]){
        
       tcph->check = check_sum( (unsigned short*) &psh, sizeof(struct pseudo_header));
 
-      printf("[DEBUG] Sending SYN packet to %s:%d\n", target, port);
-      fflush(stdout);
+      // printf("[DEBUG] Sending SYN packet to %s:%d\n", target, port);
+      // fflush(stdout);
       if (sendto(sockfd, datagram, sizeof(struct iphdr) + sizeof(struct tcphdr), 0, (struct sockaddr *) &dest, sizeof(dest)) < 0)
         err_exit("Error sending syn packet. Error number: %d. Error message: %s\n", errno, strerror(errno));
       
@@ -444,5 +445,6 @@ void ip_to_host(const char *ip, char *buffer){
     dest.sin_addr.s_addr = inet_addr(ip);
     dest.sin_port        = 0;
 
-    getnameinfo( (struct sockaddr *) &dest, sizeof(dest), buffer, NI_MAXHOST, NULL, 0, 0);
+    if(getnameinfo( (struct sockaddr *) &dest, sizeof(dest), buffer, NI_MAXHOST, NULL, 0, NI_NAMEREQD) != 0)
+      strcpy(buffer, "Hostname can't be determined");
 }
