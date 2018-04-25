@@ -28,7 +28,7 @@ To:        166.104.177.24
 166.104.177.24	www.hanyang.ac.kr
 
 Total open host: 1
-Scan duration:   0.209910
+Scan duration:   0.209910 sec(s)
 
 
 $ sudo ./syn-scan-network 35.186.153.3 80,443,8080 
@@ -44,7 +44,7 @@ To:        35.186.153.3
 35.186.153.3	arzhon.id
 
 Total open host: 1
-Scan duration:   0.088183
+Scan duration:   0.088183 sec(s)
 ```
 Target a subnet (CIDR notation): [ 166.104.177.24/16 ]
 ```
