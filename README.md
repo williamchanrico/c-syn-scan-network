@@ -17,42 +17,40 @@ example:
 Target single IP: [ 166.104.177.24 ]
 ```
 $ sudo ./syn-scan-network 166.104.177.24 80,8080
-Local IP:  192.168.200.169
+Local IP: 192.168.200.169
 
-Scan from: 166.104.177.24
-To:        166.104.177.24
+SYN scan IP range for port(s) [80,8080]
+From    : 166.104.177.24
+To      : 166.104.177.24
 1 host(s)
 
-[DEBUG] Sending SYN packet to 166.104.177.24:80
-[DEBUG] Sending SYN packet to 166.104.177.24:8080
 166.104.177.24	www.hanyang.ac.kr
 
-Total open host: 1
-Scan duration:   0.209910 sec(s)
+Total active host: 1
+Scan duration    : 0 hour(s) 0 min(s) 0.01036 sec(s)
 
 
-$ sudo ./syn-scan-network 35.186.153.3 80,443,8080 
-Local IP:  192.168.200.169
+$ sudo ./syn-scan-network 35.186.153.3 80,443,8080
+Local IP: 192.168.200.169
 
-Scan from: 35.186.153.3
-To:        35.186.153.3
+SYN scan IP range for port(s) [80,443,8080]
+From    : 35.186.153.3
+To      : 35.186.153.3
 1 host(s)
 
-[DEBUG] Sending SYN packet to 35.186.153.3:80
-[DEBUG] Sending SYN packet to 35.186.153.3:443
-[DEBUG] Sending SYN packet to 35.186.153.3:8080
 35.186.153.3	arzhon.id
 
-Total open host: 1
-Scan duration:   0.088183 sec(s)
+Total active host: 1
+Scan duration    : 0 hour(s) 0 min(s) 0.09302 sec(s)
 ```
 Target a subnet (CIDR notation): [ 166.104.177.24/16 ]
 ```
 $ sudo ./syn-scan-network 166.104.0.0/16 80,8080
-Local IP:  192.168.200.169
+Local IP: 192.168.200.169
 
-Scan from: 166.104.0.1
-To:        166.104.255.254
+SYN scan IP range for port(s) [80,8080]
+From    : 166.104.0.1
+To      : 166.104.255.254
 65536 host(s)
 
 [DEBUG] Sending SYN packet to 166.104.0.1:80
@@ -62,12 +60,6 @@ To:        166.104.255.254
 [DEBUG] Sending SYN packet to 166.104.0.3:80
 [DEBUG] Sending SYN packet to 166.104.0.3:8080
 [DEBUG] Sending SYN packet to 166.104.0.4:80
-[DEBUG] Sending SYN packet to 166.104.0.4:8080
-[DEBUG] Sending SYN packet to 166.104.0.5:80
-[DEBUG] Sending SYN packet to 166.104.0.5:8080
-[DEBUG] Sending SYN packet to 166.104.0.6:80
-[DEBUG] Sending SYN packet to 166.104.0.6:8080
-[DEBUG] Sending SYN packet to 166.104.0.7:80
 ^C
 .
 .
