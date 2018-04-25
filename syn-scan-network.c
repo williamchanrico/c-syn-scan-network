@@ -297,7 +297,7 @@ void process_packet(unsigned char *buffer, int size, char *source_ip){
     dest.sin_addr.s_addr = iph->daddr;
      
     if(tcph->syn == 1 && tcph->ack == 1 && source.sin_addr.s_addr == dest_ip.s_addr){
-      char source_host[64];
+      char source_host[NI_MAXHOST];
       ip_to_host(source_ip, source_host);
 
       // printf("Port %d open\n", ntohs(tcph->source));
@@ -396,5 +396,5 @@ void ip_to_host(const char *ip, char *buffer){
     dest.sin_addr.s_addr = inet_addr(ip);
     dest.sin_port        = 0;
 
-    getnameinfo( (struct sockaddr *) &dest, sizeof(dest), buffer, 64, NULL, 0, 0);
+    getnameinfo( (struct sockaddr *) &dest, sizeof(dest), buffer, NI_MAXHOST, NULL, 0, 0);
 }
