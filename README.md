@@ -13,6 +13,34 @@ example:
 	./syn-scan-network 166.104.177.24 80
 ```
 
+## Example
+Target single IP: [166.104.177.24]
+```
+$ sudo ./syn-scan-network 166.104.177.24 80
+Current local source IP is 192.168.200.169
+
+From:	 166.104.177.24
+To:	 166.104.177.24
+1 host(s) as targets
+
+166.104.177.24	www.hanyang.ac.kr
+
+Total open host: 1
+```
+Target subnet (CIDR notation): [166.104.177.24/16]
+```
+$ sudo ./syn-scan-network 166.104.177.24/16 80
+Current local source IP is 192.168.200.169
+
+From:	 166.104.0.1
+To:	 166.104.255.254
+65536 host(s) as targets
+
+.
+.
+[Not tested yet, takes a long time]
+```
+
 ## Used Compiler
 ```
 $ gcc --version
