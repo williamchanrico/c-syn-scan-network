@@ -21,6 +21,7 @@
 #include <inttypes.h>
 #include <limits.h>
 #include <ctype.h>
+#include <math.h>
 
 #define MAXLINE 4096
 
@@ -71,13 +72,13 @@ int main(int argc, char *argv[]){
 
   int bits = parse_cidr(argv[1], &addr, &mask);
   if (bits == -1)
-    err_exit("Invalid network address: %s\nValid example: 166.104.177.24/16\n", argv[1]);
+    err_exit("Invalid network address: %s\nValid example: 166.104.0.0/16\n", argv[1]);
   
   int source_port = 46156;
   char source_ip[20];
   get_local_ip(source_ip);
    
-  printf("Local IP:  %s\n\n" , source_ip);  //Used for creating UDP packet
+  printf("Local IP: %s\n\n" , source_ip);  //Used for creating UDP packet
 
   wildcard = mask;
   wildcard.s_addr = ~wildcard.s_addr;
@@ -97,8 +98,9 @@ int main(int argc, char *argv[]){
   }
   
   num_hosts = (int64_t) ntohl(broadcast.s_addr) - ntohl(network.s_addr) + 1;
-  printf("Scan from: %s\n", dotted_quad(&min));
-  printf("To:        %s\n",  dotted_quad(&max));
+  printf("SYN scan IP range for port(s) [%s]\n", argv[2]);
+  printf("From    : %s\n", dotted_quad(&min));
+  printf("To      : %s\n",  dotted_quad(&max));
   printf("%" PRId64 " host(s)\n\n", num_hosts);
   fflush(stdout);
 
@@ -212,8 +214,13 @@ int main(int argc, char *argv[]){
   program_duration = (finish_time.tv_sec - start_time.tv_sec);
   program_duration += (finish_time.tv_nsec - start_time.tv_nsec) / 1000000000.0;
 
-  printf("\nTotal open host: %d\n", total_open_host);
-  printf("Scan duration:   %lf sec(s)\n", program_duration);
+  int mins_duration = program_duration / 60;
+  int hours_duration = mins_duration / 60;
+  double secs_duration = fmod(program_duration, 60);
+
+  printf("\nTotal active host: %d\n", total_open_host);
+  printf("Scan duration    : %d hour(s) %d min(s) %.05lf sec(s)\n", hours_duration, mins_duration, secs_duration);
+  
   return 0;
 }
 
