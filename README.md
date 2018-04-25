@@ -1,5 +1,5 @@
 # c-syn-scan-network
-C program to scan if a port if open by sending SYN packet to all IP(s) in a network
+C program to scan if some ports are open by sending SYN packets to all IP(s) in a network
 
 ## Usage
 Need root permission
@@ -14,7 +14,7 @@ example:
 ```
 
 ## Example
-Target single IP: [166.104.177.24]
+Target single IP: [ 166.104.177.24 ]
 ```
 $ sudo ./syn-scan-network 166.104.177.24 80
 Current local source IP is 192.168.200.169
@@ -41,18 +41,18 @@ To:        35.186.153.3
 
 Total open host: 1
 ```
-Target subnet (CIDR notation): [166.104.177.24/16]
+Target subnet (CIDR notation): [ 166.104.177.24/16 ]
 ```
 $ sudo ./syn-scan-network 166.104.177.24/16 80
 Current local source IP is 192.168.200.169
 
-From:	 166.104.0.1
-To:	 166.104.255.254
+Scan from: 166.104.0.1
+To:        166.104.255.254
 65536 host(s) as targets
 
 .
 .
-[Not tested yet, takes a long time]
+[Not tested yet]
 ```
 
 ## Used Compiler
