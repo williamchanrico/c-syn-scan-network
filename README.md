@@ -6,10 +6,10 @@ Need root permission
 ```
 $ make
 # ./syn-scan-network
-usage: ./syn-scan-network <IP/CIDR> <Port>
+usage: ./syn-scan-network <IP/CIDR> <Port1,Port2,...>
 example:
-	./syn-scan-network 166.104.0.0/16 80
-	./syn-scan-network 166.104.177.24/16 80
+	./syn-scan-network 166.104.0.0/16 80,443,8080
+	./syn-scan-network 35.186.153.3 80,443,8080
 	./syn-scan-network 166.104.177.24 80
 ```
 
@@ -24,6 +24,20 @@ To:	 166.104.177.24
 1 host(s) as targets
 
 166.104.177.24	www.hanyang.ac.kr
+
+Total open host: 1
+
+$ sudo ./syn-scan-network 35.186.153.3 80,443,8080
+Current local source IP is 192.168.200.169
+
+Scan from: 35.186.153.3
+To:        35.186.153.3
+1 host(s)
+
+[DEBUG] Sending SYN packet to 35.186.153.3:80
+[DEBUG] Sending SYN packet to 35.186.153.3:443
+[DEBUG] Sending SYN packet to 35.186.153.3:8080
+35.186.153.3	arzhon.id
 
 Total open host: 1
 ```
