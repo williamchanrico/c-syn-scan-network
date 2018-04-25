@@ -74,6 +74,9 @@ To:        166.104.255.254
 [Not tested yet]
 ```
 
+## Preview
+![Screenshot](screenshot01.png?raw=true "Screenshot")
+
 ## Used Compiler
 ```
 $ gcc --version
