@@ -50,10 +50,10 @@ unsigned int total_open_host = 0;
 
 int main(int argc, char *argv[]){
   if(argc != 3){
-    printf("usage: %s <IP/CIDR> <Port>\n", argv[0]);
+    printf("usage: %s <IP/CIDR> <Port1,Port2,...>\n", argv[0]);
     printf("example:\n");
-    printf("\t%s 166.104.0.0/16 80\n", argv[0]);
-    printf("\t%s 166.104.177.24/16 80\n", argv[0]);
+    printf("\t%s 166.104.0.0/16 80,443,8080\n", argv[0]);
+    printf("\t%s 35.186.153.3 80,443,8080\n", argv[0]);
     printf("\t%s 166.104.177.24 80\n", argv[0]);
 
     return 1;
