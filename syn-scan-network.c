@@ -209,7 +209,7 @@ int main(int argc, char *argv[]){
   program_duration += (finish_time.tv_nsec - start_time.tv_nsec) / 1000000000.0;
 
   printf("\nTotal open host: %d\n", total_open_host);
-  printf("Scan duration: %lf\n", program_duration);
+  printf("Scan duration:   %lf\n", program_duration);
   return 0;
 }
 
