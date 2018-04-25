@@ -46,9 +46,13 @@ struct pseudo_header{    //Needed for checksum calculation
 };
  
 struct in_addr dest_ip;
+struct timespec start_time, finish_time;
+double program_duration;
 unsigned int total_open_host = 0;
 
 int main(int argc, char *argv[]){
+  clock_gettime(CLOCK_MONOTONIC, &start_time);
+
   if(argc != 3){
     printf("usage: %s <IP/CIDR> <Port1,Port2,...>\n", argv[0]);
     printf("example:\n");
@@ -70,7 +74,7 @@ int main(int argc, char *argv[]){
   char source_ip[20];
   get_local_ip(source_ip);
    
-  printf("Current local source IP is %s\n\n" , source_ip);  //Used for creating UDP packet
+  printf("Local IP:  %s\n\n" , source_ip);  //Used for creating UDP packet
 
   wildcard = mask;
   wildcard.s_addr = ~wildcard.s_addr;
@@ -200,7 +204,12 @@ int main(int argc, char *argv[]){
     min.s_addr = htonl(ntohl(min.s_addr) + 1);
   }
 
+  clock_gettime(CLOCK_MONOTONIC, &finish_time);
+  program_duration = (finish_time.tv_sec - start_time.tv_sec);
+  program_duration += (finish_time.tv_nsec - start_time.tv_nsec) / 1000000000.0;
+
   printf("\nTotal open host: %d\n", total_open_host);
+  printf("Scan duration: %lf\n", program_duration);
   return 0;
 }
 
