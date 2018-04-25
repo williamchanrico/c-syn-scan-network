@@ -65,6 +65,9 @@ int main(int argc, char *argv[]){
 
   int64_t num_hosts;
   struct in_addr addr, mask, wildcard, network, broadcast, min, max;
+  
+  char *port_list = malloc(strlen(argv[2]) + 1);
+  strcpy(port_list, argv[2]);
 
   int bits = parse_cidr(argv[1], &addr, &mask);
   if (bits == -1)
@@ -167,8 +170,8 @@ int main(int argc, char *argv[]){
     if(pthread_create(&sniffer_thread, NULL, receive_ack, NULL) < 0)
       err_exit("Could not create sniffer thread. Error number: %d. Error message: %s\n", errno, strerror(errno));
     
-    char *pch;
-    pch = strtok(argv[2], ",");
+    strcpy(port_list, argv[2]);
+    char *pch = strtok(port_list, ",");
     while(pch != NULL){  
       dest.sin_family = AF_INET;
       dest.sin_addr.s_addr = dest_ip.s_addr;
