@@ -19,6 +19,8 @@
 #include <sys/types.h>
 #include <netdb.h>
 #include <inttypes.h>
+#include <limits.h>
+#include <ctype.h>
 
 #define MAXLINE 4096
 
@@ -31,6 +33,7 @@ void ip_to_host(const char *, char *);
 char *hostname_to_ip(char *);
 const char *dotted_quad(const struct in_addr *);
 unsigned short check_sum(unsigned short *, int);
+void str2int(int *out, char *s, int base);
  
 struct pseudo_header{    //Needed for checksum calculation
   unsigned int source_address;
@@ -87,9 +90,9 @@ int main(int argc, char *argv[]){
   }
   
   num_hosts = (int64_t) ntohl(broadcast.s_addr) - ntohl(network.s_addr) + 1;
-  printf("From:\t %s\n", dotted_quad(&min));
-  printf("To:\t %s\n",  dotted_quad(&max));
-  printf("%" PRId64 " host(s) as targets\n\n", num_hosts);
+  printf("Scan from: %s\n", dotted_quad(&min));
+  printf("To:        %s\n",  dotted_quad(&max));
+  printf("%" PRId64 " host(s)\n\n", num_hosts);
 
   int host_count;
   for(host_count = 0; host_count < num_hosts; host_count++){
@@ -154,42 +157,75 @@ int main(int argc, char *argv[]){
      
     if(setsockopt(sockfd, IPPROTO_IP, IP_HDRINCL, val, sizeof(one)) < 0)
       err_exit("Error setting IP_HDRINCL. Error number: %d. Error message: %s\n", errno, strerror(errno));
-     
+        
     pthread_t sniffer_thread;
  
     if(pthread_create(&sniffer_thread, NULL, receive_ack, NULL) < 0)
       err_exit("Could not create sniffer thread. Error number: %d. Error message: %s\n", errno, strerror(errno));
-        
-    int port = 80;
-    dest.sin_family = AF_INET;
-    dest.sin_addr.s_addr = dest_ip.s_addr;
+    
+    char *pch;
+    pch = strtok(argv[2], ",");
+    while(pch != NULL){  
+      dest.sin_family = AF_INET;
+      dest.sin_addr.s_addr = dest_ip.s_addr;
 
-    tcph->dest = htons(port);
-    tcph->check = 0; // if you set a checksum to zero, your kernel's IP stack should fill in the correct checksum during transmission
-     
-    psh.source_address  = inet_addr(source_ip);
-    psh.dest_address    = dest.sin_addr.s_addr;
-    psh.placeholder     = 0;
-    psh.protocol        = IPPROTO_TCP;
-    psh.tcp_length      = htons(sizeof(struct tcphdr));
-     
-    memcpy(&psh.tcp, tcph, sizeof(struct tcphdr));
-     
-    tcph->check = check_sum( (unsigned short*) &psh, sizeof(struct pseudo_header));
+      int port;
+      str2int(&port, pch, 10);
+      tcph->dest = htons(port);
+      tcph->check = 0; //If you set a checksum to zero, your kernel's IP stack should fill in the correct checksum during transmission
+       
+      psh.source_address  = inet_addr(source_ip);
+      psh.dest_address    = dest.sin_addr.s_addr;
+      psh.placeholder     = 0;
+      psh.protocol        = IPPROTO_TCP;
+      psh.tcp_length      = htons(sizeof(struct tcphdr));
+       
+      memcpy(&psh.tcp, tcph, sizeof(struct tcphdr));
+       
+      tcph->check = check_sum( (unsigned short*) &psh, sizeof(struct pseudo_header));
 
-    // printf("Sending SYN packet to %s:%d\n", target, port);
-    if (sendto(sockfd, datagram, sizeof(struct iphdr) + sizeof(struct tcphdr), 0, (struct sockaddr *) &dest, sizeof(dest)) < 0)
-      err_exit("Error sending syn packet. Error number: %d. Error message: %s\n", errno, strerror(errno));
+      printf("[DEBUG] Sending SYN packet to %s:%d\n", target, port);
+      fflush(stdout);
+      if (sendto(sockfd, datagram, sizeof(struct iphdr) + sizeof(struct tcphdr), 0, (struct sockaddr *) &dest, sizeof(dest)) < 0)
+        err_exit("Error sending syn packet. Error number: %d. Error message: %s\n", errno, strerror(errno));
+      
+      pch = strtok(NULL, ",");
+    }
 
     close(sockfd);
-    
-    pthread_join(sniffer_thread, NULL);
 
+    /* Create sniffer_thread for every ports if you want to account all TCP SYN in a host */
+    pthread_join(sniffer_thread, NULL); //This will only make 1 sniffer to receive 1 reply from any port
+    
     min.s_addr = htonl(ntohl(min.s_addr) + 1);
   }
 
   printf("\nTotal open host: %d\n", total_open_host);
   return 0;
+}
+
+
+/**
+  Convert string s to integer
+ */
+void str2int(int *out, char *s, int base){
+    if (s[0] == '\0' || isspace((unsigned char) s[0]))
+        return;
+      
+    char *end;
+    errno = 0;
+    long l = strtol(s, &end, base);
+
+    if (l > INT_MAX || (errno == ERANGE && l == LONG_MAX))
+        return;
+    if (l < INT_MIN || (errno == ERANGE && l == LONG_MIN))
+        return;
+    if (*end != '\0')
+        return;
+
+    *out = l;
+    
+    return;
 }
 
 /**
