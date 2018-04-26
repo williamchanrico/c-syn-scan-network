@@ -46,10 +46,12 @@ struct pseudo_header{    //Needed for checksum calculation
   struct tcphdr tcp;
 };
  
-struct in_addr dest_ip;
-struct timespec start_time, finish_time;
 double program_duration;
+struct timespec start_time, finish_time;
 unsigned int total_open_host = 0;
+struct in_addr dest_ip;
+int source_port = 46156;
+char source_ip[20];
 
 int main(int argc, char *argv[]){
   clock_gettime(CLOCK_MONOTONIC, &start_time);
@@ -74,11 +76,7 @@ int main(int argc, char *argv[]){
   if (bits == -1)
     err_exit("Invalid network address: %s\nValid example: 166.104.0.0/16\n", argv[1]);
   
-  int source_port = 46156;
-  char source_ip[20];
   get_local_ip(source_ip);
-   
-  printf("Local IP: %s\n\n" , source_ip);  //Used for creating UDP packet
 
   wildcard = mask;
   wildcard.s_addr = ~wildcard.s_addr;
@@ -110,6 +108,13 @@ int main(int argc, char *argv[]){
 
     if(sockfd < 0)
       err_exit("Error creating socket. Error number: %d. Error message: %s\n", errno, strerror(errno));
+
+    //IP_HDRINCL to tell the kernel that headers are included in the packet
+    int one = 1;
+    const int *val = &one;
+     
+    if(setsockopt(sockfd, IPPROTO_IP, IP_HDRINCL, val, sizeof(one)) < 0)
+      err_exit("Error setting IP_HDRINCL. Error number: %d. Error message: %s\n", errno, strerror(errno));
 
     char datagram[4096];    
    
@@ -160,13 +165,6 @@ int main(int argc, char *argv[]){
     tcph->window  = htons(14600);  //Maximum allowed window size
     tcph->check   = 0; //If you set a checksum to zero, your kernel's IP stack should fill in the correct checksum during transmission
     tcph->urg_ptr = 0;
-     
-    //IP_HDRINCL to tell the kernel that headers are included in the packet
-    int one = 1;
-    const int *val = &one;
-     
-    if(setsockopt(sockfd, IPPROTO_IP, IP_HDRINCL, val, sizeof(one)) < 0)
-      err_exit("Error setting IP_HDRINCL. Error number: %d. Error message: %s\n", errno, strerror(errno));
         
     pthread_t sniffer_thread;
  
@@ -216,6 +214,7 @@ int main(int argc, char *argv[]){
 
   int mins_duration = program_duration / 60;
   int hours_duration = mins_duration / 60;
+  mins_duration %= 60;
   double secs_duration = fmod(program_duration, 60);
 
   printf("\nTotal active host: %d\n", total_open_host);
