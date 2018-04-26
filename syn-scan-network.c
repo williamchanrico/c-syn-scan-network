@@ -23,18 +23,18 @@
 #include <ctype.h>
 #include <math.h>
 
-#define MAXLINE 4096
-
-int parse_cidr(const char *, struct in_addr *, struct in_addr *);
-void err_exit(char *, ...);
+unsigned short check_sum(unsigned short *, int);
+const char *dotted_quad(const struct in_addr *);
+char *hostname_to_ip(char *);
+void ip_to_host(const char *, char *);
 void *receive_ack(void *);
 void process_packet(unsigned char *, int, char *);
+void str_to_int(int *, char *, int);
 void get_local_ip(char *);
-void ip_to_host(const char *, char *);
-char *hostname_to_ip(char *);
-const char *dotted_quad(const struct in_addr *);
-unsigned short check_sum(unsigned short *, int);
-void str2int(int *out, char *s, int base);
+void err_exit(char *, ...);
+void prepare_datagram(char *, const char *, struct iphdr *, struct tcphdr *);
+void parse_target(char *, struct in_addr *, int64_t *);
+int parse_cidr(const char *, struct in_addr *, struct in_addr *);
  
 struct pseudo_header{    //Needed for checksum calculation
   unsigned int source_address;
@@ -45,15 +45,13 @@ struct pseudo_header{    //Needed for checksum calculation
    
   struct tcphdr tcp;
 };
- 
-double program_duration;
-struct timespec start_time, finish_time;
-unsigned int total_open_host = 0;
+
 struct in_addr dest_ip;
-int source_port = 46156;
-char source_ip[20];
+unsigned total_open_host = 0;
 
 int main(int argc, char *argv[]){
+  double program_duration;
+  struct timespec start_time, finish_time;
   clock_gettime(CLOCK_MONOTONIC, &start_time);
 
   if(argc != 3){
@@ -66,121 +64,56 @@ int main(int argc, char *argv[]){
     return 1;
   }
 
-  int64_t num_hosts;
-  struct in_addr addr, mask, wildcard, network, broadcast, min, max;
-  
-  char *port_list = malloc(strlen(argv[2]) + 1);
+  printf("SYN scan [%s]:[%s]\n", argv[1], argv[2]);
+
+  char *port_list = malloc(strlen(argv[2]) + 1);  //Store the original of the selected port list
   strcpy(port_list, argv[2]);
 
-  int bits = parse_cidr(argv[1], &addr, &mask);
-  if (bits == -1)
-    err_exit("Invalid network address: %s\nValid example: 166.104.0.0/16\n", argv[1]);
-  
-  get_local_ip(source_ip);
+  int64_t num_hosts;
+  struct in_addr target_in_addr;
+  parse_target(argv[1], &target_in_addr, &num_hosts); //Parse the selected target hosts
 
-  wildcard = mask;
-  wildcard.s_addr = ~wildcard.s_addr;
+  char source_ip[INET6_ADDRSTRLEN];
+  get_local_ip(source_ip);  //Get machine's local IP for IP header information in datagram packet
 
-  network = addr;
-  network.s_addr &= mask.s_addr;
+  int sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_TCP);  //This is the main socket to send the SYN packet
+  if(sockfd < 0)
+    err_exit("Error creating socket. Error number: %d. Error message: %s\n", errno, strerror(errno));
 
-  broadcast = addr;
-  broadcast.s_addr |= wildcard.s_addr;
-
-  min = network;
-  max = broadcast;
-
-  if(network.s_addr != broadcast.s_addr){
-    min.s_addr = htonl(ntohl(min.s_addr) + 1);
-    max.s_addr = htonl(ntohl(max.s_addr) - 1);
-  }
-  
-  num_hosts = (int64_t) ntohl(broadcast.s_addr) - ntohl(network.s_addr) + 1;
-  printf("SYN scan IP range for port(s) [%s]\n", argv[2]);
-  printf("From    : %s\n", dotted_quad(&min));
-  printf("To      : %s\n",  dotted_quad(&max));
-  printf("%" PRId64 " host(s)\n\n", num_hosts);
-  fflush(stdout);
+  //Set IP_HDRINCL socket option to tell the kernel that headers are included in the packet
+  int oneVal = 1;
+  if(setsockopt(sockfd, IPPROTO_IP, IP_HDRINCL, &oneVal, sizeof(oneVal)) < 0)
+    err_exit("Error setting IP_HDRINCL. Error number: %d. Error message: %s\n", errno, strerror(errno));
 
   int host_count;
   for(host_count = 0; host_count < num_hosts; host_count++){
-    int sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_TCP);
-
-    if(sockfd < 0)
-      err_exit("Error creating socket. Error number: %d. Error message: %s\n", errno, strerror(errno));
-
-    //IP_HDRINCL to tell the kernel that headers are included in the packet
-    int one = 1;
-    const int *val = &one;
-     
-    if(setsockopt(sockfd, IPPROTO_IP, IP_HDRINCL, val, sizeof(one)) < 0)
-      err_exit("Error setting IP_HDRINCL. Error number: %d. Error message: %s\n", errno, strerror(errno));
-
-    char datagram[4096];    
-   
-    //IP header
-    struct iphdr *iph = (struct iphdr *) datagram;
-     
-    //TCP header
-    struct tcphdr *tcph = (struct tcphdr *) (datagram + sizeof(struct ip));
-     
-    struct sockaddr_in dest;
-    struct pseudo_header psh;
-     
-    const char *target = dotted_quad(&min);
-
-    if(inet_addr(target) == -1)
+    dest_ip.s_addr = inet_addr(dotted_quad(&target_in_addr)); //Current iteration's target host address
+    if(dest_ip.s_addr == -1)
       err_exit("Invalid address\n");
 
-    dest_ip.s_addr = inet_addr(target);
-
-    memset(datagram, 0, 4096);
-     
-    //Fill in the IP Header
-    iph->ihl      = 5;
-    iph->version  = 4;
-    iph->tos      = 0;
-    iph->tot_len  = sizeof(struct ip) + sizeof(struct tcphdr);
-    iph->id       = htons(46156); //Id of this packet
-    iph->frag_off = htons(16384);
-    iph->ttl      = 64;
-    iph->protocol = IPPROTO_TCP;
-    iph->check    = 0;      //Set to 0 before calculating checksum
-    iph->saddr    = inet_addr(source_ip);    //Spoof the source ip address
-    iph->daddr    = dest_ip.s_addr;
-    iph->check    = check_sum( (unsigned short *) datagram, iph->tot_len >> 1);
-     
-    //TCP Header
-    tcph->source  = htons(source_port);
-    tcph->dest    = htons(80);
-    tcph->seq     = htonl(1105024978);
-    tcph->ack_seq = 0;
-    tcph->doff    = sizeof(struct tcphdr) / 4;      //Size of tcp header
-    tcph->fin     = 0;
-    tcph->syn     = 1;
-    tcph->rst     = 0;
-    tcph->psh     = 0;
-    tcph->ack     = 0;
-    tcph->urg     = 0;
-    tcph->window  = htons(14600);  //Maximum allowed window size
-    tcph->check   = 0; //If you set a checksum to zero, your kernel's IP stack should fill in the correct checksum during transmission
-    tcph->urg_ptr = 0;
+    char datagram[4096];
+    struct iphdr *iph = (struct iphdr *) datagram;  //IP header
+    struct tcphdr *tcph = (struct tcphdr *) (datagram + sizeof(struct ip)); //TCP header
+    
+    prepare_datagram(datagram, source_ip, iph, tcph);
         
     pthread_t sniffer_thread;
- 
-    if(pthread_create(&sniffer_thread, NULL, receive_ack, NULL) < 0)
+    if(pthread_create(&sniffer_thread, NULL, receive_ack, NULL) < 0)  //Thread to listen for just one SYN-ACK packet from any of the selected ports
       err_exit("Could not create sniffer thread. Error number: %d. Error message: %s\n", errno, strerror(errno));
     
     strcpy(port_list, argv[2]);
     char *pch = strtok(port_list, ",");
-    while(pch != NULL){  
+    while(pch != NULL){ //Iterate all selected ports and send SYN packet all at once
+      struct sockaddr_in dest;
+      struct pseudo_header psh;
+
       dest.sin_family = AF_INET;
       dest.sin_addr.s_addr = dest_ip.s_addr;
 
       int port;
-      str2int(&port, pch, 10);
+      str_to_int(&port, pch, 10);
       tcph->dest = htons(port);
-      tcph->check = 0; //If you set a checksum to zero, your kernel's IP stack should fill in the correct checksum during transmission
+      tcph->check = 0;
        
       psh.source_address  = inet_addr(source_ip);
       psh.dest_address    = dest.sin_addr.s_addr;
@@ -189,7 +122,7 @@ int main(int argc, char *argv[]){
       psh.tcp_length      = htons(sizeof(struct tcphdr));
        
       memcpy(&psh.tcp, tcph, sizeof(struct tcphdr));
-       
+
       tcph->check = check_sum( (unsigned short*) &psh, sizeof(struct pseudo_header));
 
       // printf("[DEBUG] Sending SYN packet to %s:%d\n", target, port);
@@ -200,13 +133,12 @@ int main(int argc, char *argv[]){
       pch = strtok(NULL, ",");
     }
 
-    close(sockfd);
-
-    /* Create sniffer_thread for every ports if you want to account all TCP SYN in a host */
-    pthread_join(sniffer_thread, NULL); //This will only make 1 sniffer to receive 1 reply from any port
+    pthread_join(sniffer_thread, NULL); //Will wait for the sniffer to receive a reply, host is considered closed if there aren't any
     
-    min.s_addr = htonl(ntohl(min.s_addr) + 1);
+    target_in_addr.s_addr = htonl(ntohl(target_in_addr.s_addr) + 1);
   }
+
+  close(sockfd);
 
   clock_gettime(CLOCK_MONOTONIC, &finish_time);
   program_duration = (finish_time.tv_sec - start_time.tv_sec);
@@ -222,24 +154,100 @@ int main(int argc, char *argv[]){
   return 0;
 }
 
+/**
+  Initialize the datagram packet
+ */
+void prepare_datagram(char *datagram, const char *source_ip, struct iphdr *iph, struct tcphdr *tcph){
+  memset(datagram, 0, 4096);  
+  
+  //Fill in the IP Header
+  iph->ihl      = 5;
+  iph->version  = 4;
+  iph->tos      = 0;
+  iph->tot_len  = sizeof(struct ip) + sizeof(struct tcphdr);
+  iph->id       = htons(46156); //Id of this packet
+  iph->frag_off = htons(16384);
+  iph->ttl      = 64;
+  iph->protocol = IPPROTO_TCP;
+  iph->check    = 0;  //Set to 0 before calculating checksum
+  iph->saddr    = inet_addr(source_ip); //Spoof the source ip address
+  iph->daddr    = dest_ip.s_addr;
+  iph->check    = check_sum( (unsigned short *) datagram, iph->tot_len >> 1);
+   
+  //TCP Header
+  tcph->source  = htons(46156); //Source Port
+  tcph->dest    = htons(80);
+  tcph->seq     = htonl(1105024978);
+  tcph->ack_seq = 0;
+  tcph->doff    = sizeof(struct tcphdr) / 4;  //Size of tcp header
+  tcph->fin     = 0;
+  tcph->syn     = 1;
+  tcph->rst     = 0;
+  tcph->psh     = 0;
+  tcph->ack     = 0;
+  tcph->urg     = 0;
+  tcph->window  = htons(14600); //Maximum allowed window size
+  tcph->check   = 0;  //If you set a checksum to zero, your kernel's IP stack should fill in the correct checksum during transmission
+  tcph->urg_ptr = 0;
+}
+
+/**
+  Parse target IP into usable format
+  Fill target_in_addr with first target IP and num_hosts with number of hosts
+ */
+void parse_target(char *target, struct in_addr *target_in_addr, int64_t *num_hosts){
+  // char min_ip[INET_ADDRSTRLEN], max_ip[INET_ADDRSTRLEN];
+  struct in_addr parsed_in_addr, mask_in_addr, wildcard_in_addr, network_in_addr, broadcast_in_addr, min_in_addr, max_in_addr;
+
+  int bits = parse_cidr(target, &parsed_in_addr, &mask_in_addr);
+  if (bits == -1)
+    err_exit("Invalid network address: %s\nValid example: 166.104.0.0/16\n", target);
+
+  wildcard_in_addr = mask_in_addr;
+  wildcard_in_addr.s_addr = ~wildcard_in_addr.s_addr;
+
+  network_in_addr = parsed_in_addr;
+  network_in_addr.s_addr &= mask_in_addr.s_addr;
+
+  broadcast_in_addr = parsed_in_addr;
+  broadcast_in_addr.s_addr |= wildcard_in_addr.s_addr;
+
+  min_in_addr = network_in_addr;
+  max_in_addr = broadcast_in_addr;
+
+  if(network_in_addr.s_addr != broadcast_in_addr.s_addr){
+    min_in_addr.s_addr = htonl(ntohl(min_in_addr.s_addr) + 1);
+    max_in_addr.s_addr = htonl(ntohl(max_in_addr.s_addr) - 1);
+  }
+
+  *target_in_addr = min_in_addr;
+  *num_hosts = (int64_t) ntohl(broadcast_in_addr.s_addr) - ntohl(network_in_addr.s_addr) + 1;
+  
+  const char *min_ip = dotted_quad(&min_in_addr);
+  const char *max_ip = dotted_quad(&max_in_addr);
+  
+  printf("%" PRId64 " host(s): ", *num_hosts);
+  printf("%s -> %s\n\n", min_ip, max_ip);
+  fflush(stdout);
+}
 
 /**
   Convert string s to integer
  */
-void str2int(int *out, char *s, int base){
-    if (s[0] == '\0' || isspace((unsigned char) s[0]))
+void str_to_int(int *out, char *s, int base){
+    if(s[0] == '\0' || isspace( (unsigned char) s[0]))
         return;
       
     char *end;
     errno = 0;
     long l = strtol(s, &end, base);
 
-    if (l > INT_MAX || (errno == ERANGE && l == LONG_MAX))
-        return;
-    if (l < INT_MIN || (errno == ERANGE && l == LONG_MIN))
-        return;
-    if (*end != '\0')
-        return;
+    if(l > INT_MAX || (errno == ERANGE && l == LONG_MAX))
+      return;
+    if(l < INT_MIN || (errno == ERANGE && l == LONG_MIN))
+      return;
+    if(*end != '\0')
+      return;
 
     *out = l;
     
@@ -247,9 +255,9 @@ void str2int(int *out, char *s, int base){
 }
 
 /**
-  Parses a string in CIDR notation as an IPv4 address and netmask.
-  Returns the number of bits in the netmask if the string is valid.
-  Returns -1 if the string is invalid.
+  Parse CIDR notation address.
+  Return the number of bits in the netmask if the string is valid.
+  Return -1 if the string is invalid.
  */
 int parse_cidr(const char *cidr, struct in_addr *addr, struct in_addr *mask) {
   int bits = inet_net_pton(AF_INET, cidr, addr, sizeof addr);
@@ -259,7 +267,7 @@ int parse_cidr(const char *cidr, struct in_addr *addr, struct in_addr *mask) {
 }   
 
 /**
-  Formats the IPv4 address in dotted quad notation, using a static buffer.
+  Format the IPv4 address in dotted quad notation, using a static buffer.
  */
 const char *dotted_quad(const struct in_addr *addr) {
   static char buf[INET_ADDRSTRLEN];
@@ -272,7 +280,7 @@ const char *dotted_quad(const struct in_addr *addr) {
  */
 void err_exit(char *fmt, ...){
   va_list ap;
-  char buff[MAXLINE];
+  char buff[4096];
 
   va_start(ap, fmt);
   vsprintf(buff, fmt, ap);
@@ -333,8 +341,7 @@ void *receive_ack(void *ptr){
   Method to process incoming packets and look for Ack replies  
 */
 void process_packet(unsigned char *buffer, int size, char *source_ip){
-  //Get the IP Header part of this packet
-  struct iphdr *iph = (struct iphdr*) buffer;
+  struct iphdr *iph = (struct iphdr*) buffer; //IP Header part of this packet
   struct sockaddr_in source, dest;
   unsigned short iphdrlen;
    
@@ -372,7 +379,7 @@ unsigned short check_sum(unsigned short *ptr, int nbytes){
   unsigned short oddbyte;
 
   sum = 0;
-  while(nbytes>1){
+  while(nbytes > 1){
     sum += *ptr++;
     nbytes -= 2;
   }
@@ -434,7 +441,7 @@ void get_local_ip(char *buffer){
   if(getsockname(sock, (struct sockaddr*) &name, &namelen) != 0)
     err_exit("Failed to get local IP");
 
-  inet_ntop(AF_INET, &name.sin_addr, buffer, 100);
+  inet_ntop(AF_INET, &name.sin_addr, buffer, INET6_ADDRSTRLEN);
 
   close(sock);
 }
@@ -443,13 +450,13 @@ void get_local_ip(char *buffer){
  Get hostname of an IP address
  */
 void ip_to_host(const char *ip, char *buffer){
-    struct sockaddr_in dest;
+  struct sockaddr_in dest;
 
-    memset(&dest, 0, sizeof(dest));
-    dest.sin_family      = AF_INET;
-    dest.sin_addr.s_addr = inet_addr(ip);
-    dest.sin_port        = 0;
+  memset(&dest, 0, sizeof(dest));
+  dest.sin_family      = AF_INET;
+  dest.sin_addr.s_addr = inet_addr(ip);
+  dest.sin_port        = 0;
 
-    if(getnameinfo( (struct sockaddr *) &dest, sizeof(dest), buffer, NI_MAXHOST, NULL, 0, NI_NAMEREQD) != 0)
-      strcpy(buffer, "Hostname can't be determined");
+  if(getnameinfo( (struct sockaddr *) &dest, sizeof(dest), buffer, NI_MAXHOST, NULL, 0, NI_NAMEREQD) != 0)
+    strcpy(buffer, "Hostname can't be determined");
 }
