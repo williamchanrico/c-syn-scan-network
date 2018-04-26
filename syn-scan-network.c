@@ -212,9 +212,8 @@ int main(int argc, char *argv[]){
   program_duration = (finish_time.tv_sec - start_time.tv_sec);
   program_duration += (finish_time.tv_nsec - start_time.tv_nsec) / 1000000000.0;
 
-  int mins_duration = program_duration / 60;
-  int hours_duration = mins_duration / 60;
-  mins_duration %= 60;
+  int hours_duration = program_duration / 3600;
+  int mins_duration = (int) (program_duration / 60) % 60;
   double secs_duration = fmod(program_duration, 60);
 
   printf("\nTotal active host: %d\n", total_open_host);
