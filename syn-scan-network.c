@@ -1,6 +1,6 @@
 /*
 * Title: Syn Scan Network
-* Description: Scan if a port if open by sending SYN packet(s) to all IP(s) in a network
+* Description: Scan if some ports are open by sending SYN packets to all IP(s) in a network
 * Date: 24-Apr-2018
 * Author: William Chanrico
 */
@@ -223,11 +223,9 @@ void parse_target(char *target, struct in_addr *target_in_addr, int64_t *num_hos
   *target_in_addr = min_in_addr;
   *num_hosts = (int64_t) ntohl(broadcast_in_addr.s_addr) - ntohl(network_in_addr.s_addr) + 1;
   
-  const char *min_ip = dotted_quad(&min_in_addr);
-  const char *max_ip = dotted_quad(&max_in_addr);
-  
   printf("%" PRId64 " host(s): ", *num_hosts);
-  printf("%s -> %s\n\n", min_ip, max_ip);
+  printf("%s -> ", dotted_quad(&min_in_addr));
+  printf("%s\n\n", dotted_quad(&max_in_addr));
   fflush(stdout);
 }
 
@@ -235,23 +233,23 @@ void parse_target(char *target, struct in_addr *target_in_addr, int64_t *num_hos
   Convert string s to integer
  */
 void str_to_int(int *out, char *s, int base){
-    if(s[0] == '\0' || isspace( (unsigned char) s[0]))
-        return;
-      
-    char *end;
-    errno = 0;
-    long l = strtol(s, &end, base);
-
-    if(l > INT_MAX || (errno == ERANGE && l == LONG_MAX))
-      return;
-    if(l < INT_MIN || (errno == ERANGE && l == LONG_MIN))
-      return;
-    if(*end != '\0')
-      return;
-
-    *out = l;
-    
+  if(s[0] == '\0' || isspace( (unsigned char) s[0]))
     return;
+    
+  char *end;
+  errno = 0;
+  long l = strtol(s, &end, base);
+
+  if(l > INT_MAX || (errno == ERANGE && l == LONG_MAX))
+    return;
+  if(l < INT_MIN || (errno == ERANGE && l == LONG_MIN))
+    return;
+  if(*end != '\0')
+    return;
+
+  *out = l;
+  
+  return;
 }
 
 /**
