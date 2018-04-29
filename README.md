@@ -14,56 +14,26 @@ example:
 ```
 
 ## Example
-Target single IP: [ 166.104.177.24 ]
 ```
-$ sudo ./syn-scan-network 166.104.177.24 80,8080
-Local IP: 192.168.200.169
+$ sudo ./syn-scan-network 166.104.96.13/30 80,8080
+SYN scan [166.104.96.13/30]:[80,8080]
+4 host(s): 166.104.96.13 -> 166.104.96.14
 
-SYN scan IP range for port(s) [80,8080]
-From    : 166.104.177.24
-To      : 166.104.177.24
-1 host(s)
+166.104.96.13	hmcgw.hanyang.ac.kr
+166.104.96.14	hmcmail.hanyang.ac.kr
 
-166.104.177.24	www.hanyang.ac.kr
-
-Total active host: 1
-Scan duration    : 0 hour(s) 0 min(s) 0.01036 sec(s)
+Total active host: 2
+Scan duration    : 0 hour(s) 0 min(s) 2.42778 sec(s)
 
 
 $ sudo ./syn-scan-network 35.186.153.3 80,443,8080
-Local IP: 192.168.200.169
-
-SYN scan IP range for port(s) [80,443,8080]
-From    : 35.186.153.3
-To      : 35.186.153.3
-1 host(s)
+SYN scan [35.186.153.3]:[80,443,8080]
+1 host(s): 35.186.153.3 -> 35.186.153.3
 
 35.186.153.3	arzhon.id
 
 Total active host: 1
-Scan duration    : 0 hour(s) 0 min(s) 0.09302 sec(s)
-```
-Target a subnet (CIDR notation): [ 166.104.177.24/16 ]
-```
-$ sudo ./syn-scan-network 166.104.0.0/16 80,8080
-Local IP: 192.168.200.169
-
-SYN scan IP range for port(s) [80,8080]
-From    : 166.104.0.1
-To      : 166.104.255.254
-65536 host(s)
-
-[DEBUG] Sending SYN packet to 166.104.0.1:80
-[DEBUG] Sending SYN packet to 166.104.0.1:8080
-[DEBUG] Sending SYN packet to 166.104.0.2:80
-[DEBUG] Sending SYN packet to 166.104.0.2:8080
-[DEBUG] Sending SYN packet to 166.104.0.3:80
-[DEBUG] Sending SYN packet to 166.104.0.3:8080
-[DEBUG] Sending SYN packet to 166.104.0.4:80
-^C
-.
-.
-[Not tested yet]
+Scan duration    : 0 hour(s) 0 min(s) 0.10277 sec(s)
 ```
 
 ## Preview
