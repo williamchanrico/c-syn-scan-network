@@ -257,7 +257,7 @@ void str_to_int(int *out, char *s, int base){
   Return the number of bits in the netmask if the string is valid.
   Return -1 if the string is invalid.
  */
-int parse_cidr(const char *cidr, struct in_addr *addr, struct in_addr *mask) {
+int parse_cidr(const char *cidr, struct in_addr *addr, struct in_addr *mask){
   int bits = inet_net_pton(AF_INET, cidr, addr, sizeof addr);
 
   mask->s_addr = htonl(~(bits == 32 ? 0 : ~0U >> bits));
@@ -267,7 +267,7 @@ int parse_cidr(const char *cidr, struct in_addr *addr, struct in_addr *mask) {
 /**
   Format the IPv4 address in dotted quad notation, using a static buffer.
  */
-const char *dotted_quad(const struct in_addr *addr) {
+const char *dotted_quad(const struct in_addr *addr){
   static char buf[INET_ADDRSTRLEN];
   
   return inet_ntop(AF_INET, addr, buf, sizeof buf);
@@ -382,7 +382,7 @@ unsigned short check_sum(unsigned short *ptr, int nbytes){
     nbytes -= 2;
   }
 
-  if(nbytes == 1) {
+  if(nbytes == 1){
     oddbyte = 0;
     *( (u_char*) &oddbyte) = *(u_char*) ptr;
     sum += oddbyte;
